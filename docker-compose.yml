@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # 1. 业务中台 (PHP + Nginx)
+  paiui-app:
+    image: webdevops/php-nginx:8.3-alpine
+    container_name: paiui-app
+    ports:
+      - "8081:80"
+    volumes:
+      - ./paiui-app:/app
+    depends_on:
+      - paiui-db
+      - paiui-redis
+    environment:
+      - WEB_DOCUMENT_ROOT=/app/public
+      - DB_HOST=paiui-db
+      - REDIS_HOST=paiui-redis
+    restart: unless-stopped
+
+  # 2. 数据库
+  paiui-db:
+    image: mysql:8.0
+    container_name: paiui-db
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./storage/mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+  # 3. 缓存与任务队列
+  paiui-redis:
+    image: redis:7.0-alpine
+    container_name: paiui-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./storage/redis_data:/data
+    restart: unless-stopped
+
+  # 4. AI 推理引擎 (ComfyUI) - 本地GPU模式，暂时注释
+  # paiui-ai-engine:
+  #   image: yanwk/comfyui-boot:latest-cuda12.1
+  #   container_name: paiui-ai-engine
+  #   ports:
+  #     - "8188:8188"
+  #   volumes:
+  #     - ./paiui-ai/models:/home/runner/ComfyUI/models
+  #     - ./paiui-ai/output:/home/runner/ComfyUI/output
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   restart: unless-stopped
